@@ -4,10 +4,11 @@ import (
 	"bytes"
 	"crypto/tls"
 	"fmt"
-	"github.com/Azure/go-ntlmssp"
 	"io/ioutil"
 	"net/http"
 	"net/http/httputil"
+
+	"github.com/Azure/go-ntlmssp"
 )
 
 const (
@@ -27,6 +28,7 @@ const (
 
 type Config struct {
 	Dump    bool
+	OAuth   bool
 	NTLM    bool
 	SkipTLS bool
 }
@@ -111,6 +113,11 @@ func applyConfig(config *Config, client *http.Client) {
 				TLSClientConfig: &tls.Config{InsecureSkipVerify: config.SkipTLS},
 			},
 		}
+	}
+	if config.OAuth {
+		//To get AccessToken from MSAL: https://learn.microsoft.com/en-us/exchange/client-developer/exchange-web-services/how-to-authenticate-an-ews-application-by-using-oauth and pass it as PASSWORD in any circumstances.
+		//BE CAREFUL: 'Main' BRANCH OF GO SUPPORT REPOSITORY github.com/AzureAD/microsoft-authentication-library-for-go MAY NOT UP TO DATE WITH THE PASSAGE REQUIREMENT, USE 'Dev' BRANCH AND PROCEED WITH CAUTION IF YOU ARE IN PRODUCTION.
+		client.Transport = bearerNegotiator{}
 	}
 	if config.SkipTLS {
 		http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
