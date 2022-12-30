@@ -31,6 +31,15 @@ type Config struct {
 	OAuth   bool
 	NTLM    bool
 	SkipTLS bool
+
+	Transport func(*http.Request) (*http.Response, error)
+}
+
+func (c *Config) RoundTrip(req *http.Request) (*http.Response, error) {
+	if c.Transport == nil {
+		c.Transport = http.DefaultClient.Transport.RoundTrip
+	}
+	return c.Transport(req)
 }
 
 type Client interface {
@@ -80,6 +89,7 @@ func (c *client) SendAndReceive(body []byte) ([]byte, error) {
 	req.Header.Set("Content-Type", "text/xml")
 
 	client := &http.Client{
+		Transport: c.config,
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			return http.ErrUseLastResponse
 		},
@@ -117,7 +127,7 @@ func applyConfig(config *Config, client *http.Client) {
 	if config.OAuth {
 		//To get AccessToken from MSAL: https://learn.microsoft.com/en-us/exchange/client-developer/exchange-web-services/how-to-authenticate-an-ews-application-by-using-oauth and pass it as PASSWORD in any circumstances.
 		//BE CAREFUL: 'Main' BRANCH OF GO SUPPORT REPOSITORY github.com/AzureAD/microsoft-authentication-library-for-go MAY NOT UP TO DATE WITH THE PASSAGE REQUIREMENT, USE 'Dev' BRANCH AND PROCEED WITH CAUTION IF YOU ARE IN PRODUCTION.
-		client.Transport = bearerNegotiator{}
+		client.Transport = bearerNegotiator{config}
 	}
 	if config.SkipTLS {
 		http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
